@@ -34,6 +34,11 @@ MAX_HISTORY_TOKENS_ESTIMATE: int = int(
     os.getenv("MAX_HISTORY_TOKENS_ESTIMATE", "4000")
 )
 
+# ── Response Length ───────────────────────────────────────────────────────────
+# Maximum tokens in the model's response. None = no cap (model decides).
+# 500-800 is a good Discord-friendly range. Raise for more detailed responses.
+MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "750"))
+
 # ── System Prompt ─────────────────────────────────────────────────────────────
 # Optional system message prepended to every request.
 # Leave blank to rely entirely on the workspace model's own system prompt.

@@ -13,6 +13,7 @@ from config import (
     MAX_HISTORY_MESSAGES,
     MAX_HISTORY_TOKENS_ESTIMATE,
     SYSTEM_PROMPT,
+    MAX_TOKENS,
 )
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ async def query_openwebui(channel_id: int, user_message: str) -> str:
     payload = {
         "model": MODEL_ID,
         "messages": messages_payload,
+        "max_tokens": MAX_TOKENS,
     }
 
     headers = {
