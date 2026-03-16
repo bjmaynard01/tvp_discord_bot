@@ -167,7 +167,7 @@ async def on_message(message: discord.Message):
 
 # ── Slash Commands ────────────────────────────────────────────────────────────
 
-@tree.command(name="ask", description="Ask the AI assistant a question.")
+@tree.command(name="tvpask", description="Ask the TVP AI assistant a question.")
 @app_commands.describe(question="Your question or message for the assistant.")
 async def slash_ask(interaction: discord.Interaction, question: str):
     await interaction.response.defer(thinking=True)
@@ -180,25 +180,25 @@ async def slash_ask(interaction: discord.Interaction, question: str):
         await interaction.followup.send(chunk)
 
 
-@tree.command(name="clear", description="Clear conversation history for this channel.")
+@tree.command(name="tvpclear", description="Clear TVP bot conversation history for this channel.")
 async def slash_clear(interaction: discord.Interaction):
     conversation_history[interaction.channel_id].clear()
     await interaction.response.send_message(
-        "🗑️ Conversation history cleared for this channel.", ephemeral=True
+        "🗑️ TVP bot conversation history cleared for this channel.", ephemeral=True
     )
 
 
-@tree.command(name="history", description="Show how many messages are in the current conversation history.")
+@tree.command(name="tvphistory", description="Show how many messages are in the TVP bot conversation history.")
 async def slash_history(interaction: discord.Interaction):
     count = len(conversation_history[interaction.channel_id])
     await interaction.response.send_message(
-        f"📝 This channel has **{count}** message(s) in the current conversation history "
+        f"📝 This channel has **{count}** message(s) in the TVP bot conversation history "
         f"(max: {MAX_HISTORY_MESSAGES}).",
         ephemeral=True,
     )
 
 
-@tree.command(name="model", description="Show which model the bot is currently using.")
+@tree.command(name="tvpmodel", description="Show which model the TVP bot is currently using.")
 async def slash_model(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"🤖 Currently using model: `{MODEL_ID}` via `{OPENWEBUI_API_URL}`",

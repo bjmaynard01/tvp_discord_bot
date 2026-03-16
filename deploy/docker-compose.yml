@@ -1,0 +1,9 @@
+services:
+  tvp-discord-bot:
+    image: ghcr.io/bjmaynard01/tvp_discord_bot:latest
+    container_name: tvp-bot
+    restart: unless-stopped
+    volumes:
+      - /mnt/containers/tvp-bot/.env:/app/.env:ro
+    networks:
+      - external
