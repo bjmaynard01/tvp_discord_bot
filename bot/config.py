@@ -12,6 +12,7 @@ load_dotenv()
 
 # ── Discord ───────────────────────────────────────────────────────────────────
 DISCORD_TOKEN: str = os.getenv("DISCORD_TOKEN", "")
+DISCORD_WEBHOOK_URL: str = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 # ── Open WebUI ────────────────────────────────────────────────────────────────
 OPENWEBUI_API_URL: str = os.getenv(

@@ -14,6 +14,7 @@ from config import (
     MAX_HISTORY_TOKENS_ESTIMATE,
     SYSTEM_PROMPT,
     MAX_TOKENS,
+    DISCORD_WEBHOOK_URL,
 )
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -53,6 +54,20 @@ def trim_history_by_tokens(history: deque) -> list[dict]:
         messages.pop(0)  # drop oldest
     return messages
 
+async def notify_admin_webook(error_code: int, error_body: str, channel_id: int):
+    if not DISCORD_WEBHOOK_URL:
+        log.warning("No webhook URL configured, cannot send admin notification.")
+        return
+
+    payload = {
+        "content": f"⚠️ **TVP Bot Error**\nChannel: `{channel_id}`\nStatus: `{error_code}`\n```{error_body}```"
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            await session.post(DISCORD_WEBHOOK_URL, json=payload)
+    except Exception as exc:
+        log.error("Failed to send admin webhook: %s", exc)
+
 
 async def query_openwebui(channel_id: int, user_message: str) -> str:
     """Send the user message to Open WebUI and return the assistant reply."""
@@ -90,10 +105,12 @@ async def query_openwebui(channel_id: int, user_message: str) -> str:
                 if resp.status == 429:
                     body = await resp.text()
                     log.error("OpenWebUI rate limit hit: %s", body)
+                    await notify_admin_webook(429, body)
                     return f"⚠️ API error {resp.status} (rate limit) - check bot logs."
                 if resp.status != 200:
                     body = await resp.text()
                     log.error("OpenWebUI error %s: %s", resp.status, body)
+                    await notify_admin_webook(resp.status, body)
                     return f"⚠️ API error {resp.status} — check bot logs."
 
                 data = await resp.json()
