@@ -87,6 +87,10 @@ async def query_openwebui(channel_id: int, user_message: str) -> str:
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=120),
             ) as resp:
+                if resp.status == 429:
+                    body = await resp.text()
+                    log.error("OpenWebUI rate limit hit: %s", body)
+                    return f"⚠️ API error {resp.status} (rate limit) - check bot logs."
                 if resp.status != 200:
                     body = await resp.text()
                     log.error("OpenWebUI error %s: %s", resp.status, body)

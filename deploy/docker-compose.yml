@@ -1,5 +1,5 @@
 services:
-  tvp-discord-bot:
+  tvp-bot:
     image: ghcr.io/bjmaynard01/tvp_discord_bot:latest
     container_name: tvp-bot
     restart: unless-stopped
