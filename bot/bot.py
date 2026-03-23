@@ -17,6 +17,11 @@ from config import (
     DISCORD_WEBHOOK_URL,
 )
 
+# Per-channel locks to prevent concurrent requests
+channel_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+# Track if a channel is currently processing
+channel_busy: dict[int, bool] = defaultdict(bool)
+
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -142,6 +147,18 @@ def chunk_message(text: str, limit: int = 1900) -> list[str]:
         text = text[split_at:].lstrip("\n")
     return chunks
 
+async def handle_query(channel_id: int, user_message: str) -> str:
+    lock = channel_locks[channel_id]
+    
+    if channel_busy[channel_id]:
+        return "⏳ I'm still working on the previous question — give me a moment and try again."
+    
+    async with lock:
+        channel_busy[channel_id] = True
+        try:
+            return await query_openwebui(channel_id, user_message)
+        finally:
+            channel_busy[channel_id] = False
 
 # ── Events ────────────────────────────────────────────────────────────────────
 
@@ -174,7 +191,7 @@ async def on_message(message: discord.Message):
         return
 
     async with message.channel.typing():
-        reply = await query_openwebui(message.channel.id, user_text)
+        reply = await handle_query(message.channel.id, user_text)
 
     chunks = chunk_message(reply)
     for i, chunk in enumerate(chunks):
@@ -193,7 +210,7 @@ async def on_message(message: discord.Message):
 async def slash_ask(interaction: discord.Interaction, question: str):
     await interaction.response.defer(thinking=True)
 
-    reply = await query_openwebui(interaction.channel_id, question)
+    reply = await handle_query(interaction.channel_id, question)
     chunks = chunk_message(reply)
 
     await interaction.followup.send(chunks[0])
