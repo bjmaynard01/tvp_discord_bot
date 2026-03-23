@@ -239,7 +239,7 @@ async def slash_history(interaction: discord.Interaction):
 @tree.command(name="tvpmodel", description="Show which model the TVP bot is currently using.")
 async def slash_model(interaction: discord.Interaction):
     await interaction.response.send_message(
-        f"🤖 Currently using model: `{MODEL_ID}` via `{OPENWEBUI_API_URL}`",
+        f"🤖 Currently using model: `{MODEL_ID}`",
         ephemeral=True,
     )
 
