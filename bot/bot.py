@@ -74,7 +74,7 @@ async def notify_admin_webook(error_code: int, error_body: str, channel_id: int)
         log.error("Failed to send admin webhook: %s", exc)
 
 
-async def query_openwebui(channel_id: int, user_message: str) -> str:
+async def query_openwebui(channel_id: int, user_message: str, web_search: bool = False) -> str:
     """Send the user message to Open WebUI and return the assistant reply."""
     history = conversation_history[channel_id]
 
@@ -93,6 +93,8 @@ async def query_openwebui(channel_id: int, user_message: str) -> str:
         "messages": messages_payload,
         "max_tokens": MAX_TOKENS,
     }
+    if web_search:
+        payload["features"] = {"web_search": True}
 
     headers = {
         "Authorization": f"Bearer {OPENWEBUI_API_KEY}",
@@ -147,16 +149,16 @@ def chunk_message(text: str, limit: int = 1900) -> list[str]:
         text = text[split_at:].lstrip("\n")
     return chunks
 
-async def handle_query(channel_id: int, user_message: str) -> str:
+async def handle_query(channel_id: int, user_message: str, web_search: bool = False) -> str:
     lock = channel_locks[channel_id]
-    
+
     if channel_busy[channel_id]:
         return "⏳ I'm still working on the previous question — give me a moment and try again."
-    
+
     async with lock:
         channel_busy[channel_id] = True
         try:
-            return await query_openwebui(channel_id, user_message)
+            return await query_openwebui(channel_id, user_message, web_search=web_search)
         finally:
             channel_busy[channel_id] = False
 
@@ -190,8 +192,17 @@ async def on_message(message: discord.Message):
         await message.reply("Hey! Ask me anything. 😊", mention_author=False)
         return
 
+    # Check for /websearch prefix
+    web_search = False
+    if user_text.lower().startswith("/websearch"):
+        web_search = True
+        user_text = user_text[len("/websearch"):].strip()
+        if not user_text:
+            await message.reply("Please include a query after `/websearch`.", mention_author=False)
+            return
+
     async with message.channel.typing():
-        reply = await handle_query(message.channel.id, user_text)
+        reply = await handle_query(message.channel.id, user_text, web_search=web_search)
 
     chunks = chunk_message(reply)
     for i, chunk in enumerate(chunks):
@@ -211,6 +222,19 @@ async def slash_ask(interaction: discord.Interaction, question: str):
     await interaction.response.defer(thinking=True)
 
     reply = await handle_query(interaction.channel_id, question)
+    chunks = chunk_message(reply)
+
+    await interaction.followup.send(chunks[0])
+    for chunk in chunks[1:]:
+        await interaction.followup.send(chunk)
+
+
+@tree.command(name="tvpwebsearch", description="Ask the TVP AI assistant a question using web search.")
+@app_commands.describe(question="Your question — the bot will search the web before answering.")
+async def slash_websearch(interaction: discord.Interaction, question: str):
+    await interaction.response.defer(thinking=True)
+
+    reply = await handle_query(interaction.channel_id, question, web_search=True)
     chunks = chunk_message(reply)
 
     await interaction.followup.send(chunks[0])
