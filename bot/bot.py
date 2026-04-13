@@ -192,13 +192,13 @@ async def on_message(message: discord.Message):
         await message.reply("Hey! Ask me anything. 😊", mention_author=False)
         return
 
-    # Check for /websearch prefix
+    # Check for !web prefix (avoids Discord's slash command UI intercepting '/')
     web_search = False
-    if user_text.lower().startswith("/websearch"):
+    if user_text.lower().startswith("!web ") or user_text.lower() == "!web":
         web_search = True
-        user_text = user_text[len("/websearch"):].strip()
+        user_text = user_text[len("!web"):].strip()
         if not user_text:
-            await message.reply("Please include a query after `/websearch`.", mention_author=False)
+            await message.reply("Please include a query after `!web`.", mention_author=False)
             return
 
     async with message.channel.typing():
@@ -229,7 +229,7 @@ async def slash_ask(interaction: discord.Interaction, question: str):
         await interaction.followup.send(chunk)
 
 
-@tree.command(name="tvpwebsearch", description="Ask the TVP AI assistant a question using web search.")
+@tree.command(name="tvpwebsearch", description="Ask the TVP AI assistant a question using live web search.")
 @app_commands.describe(question="Your question — the bot will search the web before answering.")
 async def slash_websearch(interaction: discord.Interaction, question: str):
     await interaction.response.defer(thinking=True)
