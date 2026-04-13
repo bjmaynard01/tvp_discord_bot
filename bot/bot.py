@@ -59,13 +59,14 @@ def trim_history_by_tokens(history: deque) -> list[dict]:
         messages.pop(0)  # drop oldest
     return messages
 
-async def notify_admin_webook(error_code: int, error_body: str, channel_id: int):
+async def notify_admin_webook(error_code: int, error_body: str):#, channel_id: int):
     if not DISCORD_WEBHOOK_URL:
         log.warning("No webhook URL configured, cannot send admin notification.")
         return
 
     payload = {
-        "content": f"⚠️ **TVP Bot Error**\nChannel: `{channel_id}`\nStatus: `{error_code}`\n```{error_body}```"
+        #"content": f"⚠️ **TVP Bot Error**\nChannel: `{channel_id}`\nStatus: `{error_code}`\n```{error_body}```"
+        "content": f"⚠️ **TVP Bot Error**\nStatus: `{error_code}`\n```{error_body}```"
     }
     try:
         async with aiohttp.ClientSession() as session:
