@@ -108,7 +108,7 @@ async def query_openwebui(channel_id: int, user_message: str, web_search: bool =
                 f"{OPENWEBUI_API_URL}/api/chat/completions",
                 json=payload,
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=120),
+                timeout=aiohttp.ClientTimeout(total=300),
             ) as resp:
                 if resp.status == 429:
                     body = await resp.text()

@@ -9,13 +9,24 @@ A Discord bot that connects your server to the [Open WebUI](https://gpt.maynardf
 | Feature | Detail |
 |---|---|
 | `@BotName your question` | Mention the bot anywhere it has access |
-| `/ask <question>` | Slash command — works with Discord's autocomplete |
-| `/clear` | Wipe conversation history for the current channel |
-| `/history` | See how many messages are in the current history |
-| `/model` | Check which model & API URL is active |
+| `@BotName !web your question` | Mention with `!web` prefix to enable live web search |
+| `/tvpask <question>` | Slash command — works with Discord's autocomplete |
+| `/tvpwebsearch <question>` | Slash command that always uses live web search |
+| `/tvpclear` | Wipe conversation history for the current channel |
+| `/tvphistory` | See how many messages are in the current history |
+| `/tvpmodel` | Check which model is active |
 | Typing indicator | Bot shows "typing…" while the model generates |
 | Per-channel history | Each channel has its own independent conversation thread |
 | Token-aware trimming | Oldest messages are dropped when history grows too large |
+
+### Web Search
+
+There are two ways to have the bot search the web before answering:
+
+- **Slash command:** `/tvpwebsearch your question` — always uses web search
+- **Mention prefix:** `@BotName !web your question` — add `!web` right after the mention
+
+> **Why `!web` and not `/web`?** Discord intercepts `/` at the start of a message and treats it as a slash command, so `!web` is used as the prefix instead.
 
 ---
 

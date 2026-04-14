@@ -55,10 +55,14 @@ All config is in `bot/.env` (gitignored). Copy `deploy/.env.example` to get star
 ## Bot Commands
 
 - `@mention <question>` — Ask a question via mention
+- `@mention !web <question>` — Ask with live web search enabled (`!web` prefix, right after the mention)
 - `/tvpask <question>` — Slash command equivalent
+- `/tvpwebsearch <question>` — Slash command that always enables web search
 - `/tvpclear` — Clear this channel's conversation history (ephemeral)
 - `/tvphistory` — Show message count in history (ephemeral)
 - `/tvpmodel` — Show current model ID (ephemeral)
+
+> Web search note: `!web` is used instead of `/web` because Discord intercepts `/` at the start of a message as a slash command.
 
 ## Deployment
 
