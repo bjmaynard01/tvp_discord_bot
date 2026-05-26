@@ -122,6 +122,7 @@ async def query_openwebui(channel_id: int, user_message: str, web_search: bool =
                     return f"⚠️ API error {resp.status} — check bot logs."
 
                 data = await resp.json()
+                log.info("Full API response: %s", data)
                 reply = data["choices"][0]["message"]["content"]
 
     except asyncio.TimeoutError:
