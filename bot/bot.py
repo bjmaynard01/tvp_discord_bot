@@ -104,6 +104,7 @@ async def query_openwebui(channel_id: int, user_message: str, web_search: bool =
 
     try:
         async with aiohttp.ClientSession() as session:
+            log.info("Querying model=%r url=%s", MODEL_ID, f"{OPENWEBUI_API_URL}/api/chat/completions")
             async with session.post(
                 f"{OPENWEBUI_API_URL}/api/chat/completions",
                 json=payload,
