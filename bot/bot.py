@@ -122,8 +122,20 @@ async def query_openwebui(channel_id: int, user_message: str, web_search: bool =
                     return f"⚠️ API error {resp.status} — check bot logs."
 
                 data = await resp.json()
-                log.info("Full API response: %s", data)
                 reply = data["choices"][0]["message"]["content"]
+
+                # Collect unique source names from knowledge base / web search citations.
+                # The same document appears multiple times (once per chunk), so deduplicate.
+                cited_sources = []
+                for source_group in data.get("sources", []):
+                    for meta in source_group.get("metadata", []):
+                        name = meta.get("name") or meta.get("source")
+                        if name and name not in cited_sources:
+                            cited_sources.append(name)
+
+                if cited_sources:
+                    source_list = "\n".join(f"• {name}" for name in cited_sources)
+                    reply += f"\n\n📚 **Sources:**\n{source_list}"
 
     except asyncio.TimeoutError:
         log.error("Request to OpenWebUI timed out")
