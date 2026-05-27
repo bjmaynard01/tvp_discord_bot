@@ -249,6 +249,10 @@ async def handle_bot_feedback(message: discord.Message):
         if not (is_positive or is_negative):
             return
 
+        trigger_type = "reply+mention" if (is_reply_to_bot and is_mention) else ("reply" if is_reply_to_bot else "mention")
+        feedback_type = "positive" if is_positive else "negative"
+        log.info("Feedback triggered (%s, %s) in channel %s", trigger_type, feedback_type, message.channel.id)
+
         # Apply emoji reactions
         if is_positive:
             # Pick 1 or 2 emoji from the positive pool
@@ -259,15 +263,19 @@ async def handle_bot_feedback(message: discord.Message):
         for emoji in emojis:
             try:
                 await message.add_reaction(emoji)
+                log.info("Reaction added: %s to message %s", emoji, message.id)
             except Exception as exc:
                 log.warning("Failed to add reaction %s: %s", emoji, exc)
 
         # Roll for retort
-        if random.random() < BOT_RETORT_CHANCE:
+        roll = random.random()
+        log.info("Retort roll: %.2f (threshold: %.2f) — %s", roll, BOT_RETORT_CHANCE, "firing" if roll < BOT_RETORT_CHANCE else "skipped")
+        if roll < BOT_RETORT_CHANCE:
             retort = await generate_retort(is_positive)
             if retort:
                 try:
                     await message.reply(retort, mention_author=False)
+                    log.info("Retort sent to message %s", message.id)
                 except Exception as exc:
                     log.warning("Failed to send retort: %s", exc)
 
