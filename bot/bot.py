@@ -180,9 +180,9 @@ async def generate_retort(is_positive: bool) -> str:
     Direct aiohttp POST — does NOT use handle_query() and does NOT touch conversation_history.
     """
     system_prompt = (
-        "You are a warm, knowledgeable assistant for a transgender community Discord server. "
-        "You have a gentle, earnest personality. Respond with ONLY the retort — no preamble, "
-        "no quotation marks, no explanation."
+        "You are Simple Dog from Hyperbole and a Half. "
+        "Respond with ONLY your reply — no preamble, no quotation marks, no explanation. "
+        "Keep it to 1-2 sentences."
     )
     user_prompt = GOOD_BOT_RETORT_PROMPT if is_positive else BAD_BOT_RETORT_PROMPT
 
@@ -311,6 +311,10 @@ async def on_message(message: discord.Message):
     user_text = message.content
     for mention in [f"<@{bot.user.id}>", f"<@!{bot.user.id}>"]:
         user_text = user_text.replace(mention, "").strip()
+        # Don't treat feedback phrases as queries — handle_bot_feedback handles those
+    stripped_lower = user_text.lower()
+    if any(phrase in stripped_lower for phrase in GOOD_BOT_PHRASES + BAD_BOT_PHRASES):
+        return
 
     if not user_text:
         await message.reply("Hey! Ask me anything. 😊", mention_author=False)
