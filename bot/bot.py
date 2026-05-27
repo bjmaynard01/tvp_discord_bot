@@ -211,12 +211,17 @@ async def generate_retort(is_positive: bool) -> str:
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
+                log.info("Ollama responded with status %s", resp.status)
                 if resp.status != 200:
-                    log.warning("Retort generation failed with status %s", resp.status)
+                    body = await resp.text()
+                    log.warning("Retort generation failed — status %s, body: %s", resp.status, body[:200])
                     return ""
                 data = await resp.json()
-                # Ollama response: {"message": {"role": "assistant", "content": "..."}}
-                return data["message"]["content"].strip()
+                log.info("Ollama raw response: %r", str(data)[:300])
+                content = data["message"]["content"].strip()
+                if not content:
+                    log.warning("Ollama returned 200 but content was empty")
+                return content
     except Exception as exc:
         log.warning("Retort generation error: %s", exc)
         return ""
