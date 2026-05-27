@@ -191,6 +191,8 @@ async def generate_retort(is_positive: bool) -> str:
     user_prompt = GOOD_BOT_RETORT_PROMPT if is_positive else BAD_BOT_RETORT_PROMPT
 
     # Ollama native /api/chat format — no auth header needed.
+    # think=False disables chain-of-thought on thinking models (e.g. gemma4:e4b),
+    # which otherwise put their output in a "thinking" field and leave content empty.
     # num_predict caps output tokens (Ollama's equivalent of max_tokens).
     payload = {
         "model": OLLAMA_RETORT_MODEL,
@@ -199,6 +201,7 @@ async def generate_retort(is_positive: bool) -> str:
             {"role": "user", "content": user_prompt},
         ],
         "stream": False,
+        "think": False,
         "options": {
             "num_predict": 120,
         },
