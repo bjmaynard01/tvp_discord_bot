@@ -8,7 +8,7 @@ COPY bot/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY bot/bot.py bot/config.py ./
+COPY bot/bot.py bot/config.py bot/affirmations.py bot/affirmations.json ./
 
 # Non-root user for security
 RUN useradd -m -u 1000 botuser && chown -R botuser:botuser /app
