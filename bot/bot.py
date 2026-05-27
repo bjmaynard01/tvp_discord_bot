@@ -24,6 +24,8 @@ from config import (
     BOT_RETORT_CHANCE,
     GOOD_BOT_RETORT_PROMPT,
     BAD_BOT_RETORT_PROMPT,
+    OLLAMA_API_URL,
+    OLLAMA_RETORT_MODEL,
 )
 from affirmations import get_affirmation, CATEGORY_LABELS
 
@@ -176,8 +178,10 @@ def chunk_message(text: str, limit: int = 1900) -> list[str]:
 
 async def generate_retort(is_positive: bool) -> str:
     """
-    Generate a short personality retort via Open WebUI.
-    Direct aiohttp POST — does NOT use handle_query() and does NOT touch conversation_history.
+    Generate a short personality retort via Ollama (raw model, no presentation layer).
+    Goes directly to Ollama so the workspace system prompt in Open WebUI doesn't
+    override the bot's silly personality. Does NOT use handle_query() and does NOT
+    touch conversation_history.
     """
     system_prompt = (
         "You are Simple Dog from Hyperbole and a Half. "
@@ -186,32 +190,33 @@ async def generate_retort(is_positive: bool) -> str:
     )
     user_prompt = GOOD_BOT_RETORT_PROMPT if is_positive else BAD_BOT_RETORT_PROMPT
 
+    # Ollama native /api/chat format — no auth header needed.
+    # num_predict caps output tokens (Ollama's equivalent of max_tokens).
     payload = {
-        "model": MODEL_ID,
+        "model": OLLAMA_RETORT_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        "max_tokens": 120,
-    }
-    headers = {
-        "Authorization": f"Bearer {OPENWEBUI_API_KEY}",
-        "Content-Type": "application/json",
+        "stream": False,
+        "options": {
+            "num_predict": 120,
+        },
     }
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{OPENWEBUI_API_URL}/api/chat/completions",
+                f"{OLLAMA_API_URL}/api/chat",
                 json=payload,
-                headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
                 if resp.status != 200:
                     log.warning("Retort generation failed with status %s", resp.status)
                     return ""
                 data = await resp.json()
-                return data["choices"][0]["message"]["content"].strip()
+                # Ollama response: {"message": {"role": "assistant", "content": "..."}}
+                return data["message"]["content"].strip()
     except Exception as exc:
         log.warning("Retort generation error: %s", exc)
         return ""
