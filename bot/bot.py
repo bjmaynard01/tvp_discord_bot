@@ -4,7 +4,9 @@ from discord.ext import commands
 import aiohttp
 import asyncio
 import logging
+import random
 from collections import defaultdict, deque
+from typing import Optional
 from config import (
     DISCORD_TOKEN,
     OPENWEBUI_API_URL,
@@ -15,7 +17,15 @@ from config import (
     SYSTEM_PROMPT,
     MAX_TOKENS,
     DISCORD_WEBHOOK_URL,
+    GOOD_BOT_PHRASES,
+    BAD_BOT_PHRASES,
+    GOOD_BOT_REACTIONS,
+    BAD_BOT_REACTIONS,
+    BOT_RETORT_CHANCE,
+    GOOD_BOT_RETORT_PROMPT,
+    BAD_BOT_RETORT_PROMPT,
 )
+from affirmations import get_affirmation, CATEGORY_LABELS
 
 # Per-channel locks to prevent concurrent requests
 channel_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
@@ -164,6 +174,102 @@ def chunk_message(text: str, limit: int = 1900) -> list[str]:
         text = text[split_at:].lstrip("\n")
     return chunks
 
+async def generate_retort(is_positive: bool) -> str:
+    """
+    Generate a short personality retort via Open WebUI.
+    Direct aiohttp POST — does NOT use handle_query() and does NOT touch conversation_history.
+    """
+    system_prompt = (
+        "You are a warm, knowledgeable assistant for a transgender community Discord server. "
+        "You have a gentle, earnest personality. Respond with ONLY the retort — no preamble, "
+        "no quotation marks, no explanation."
+    )
+    user_prompt = GOOD_BOT_RETORT_PROMPT if is_positive else BAD_BOT_RETORT_PROMPT
+
+    payload = {
+        "model": MODEL_ID,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "max_tokens": 120,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENWEBUI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{OPENWEBUI_API_URL}/api/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status != 200:
+                    log.warning("Retort generation failed with status %s", resp.status)
+                    return ""
+                data = await resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+    except Exception as exc:
+        log.warning("Retort generation error: %s", exc)
+        return ""
+
+
+async def handle_bot_feedback(message: discord.Message):
+    """
+    Check if a message is positive/negative feedback directed at the bot.
+    If so, react with emoji and optionally send a short AI-generated retort.
+    All errors are caught here — this must never disrupt normal message handling.
+    """
+    try:
+        content_lower = message.content.lower()
+
+        # Check trigger conditions: must be a reply to a bot message OR an @mention of the bot
+        is_reply_to_bot = (
+            message.reference is not None
+            and isinstance(message.reference.resolved, discord.Message)
+            and message.reference.resolved.author.id == bot.user.id
+        )
+        is_mention = bot.user in message.mentions
+
+        if not (is_reply_to_bot or is_mention):
+            return
+
+        # Determine feedback type — good phrases take priority on a tie
+        is_positive = any(phrase in content_lower for phrase in GOOD_BOT_PHRASES)
+        is_negative = any(phrase in content_lower for phrase in BAD_BOT_PHRASES)
+
+        if not (is_positive or is_negative):
+            return
+
+        # Apply emoji reactions
+        if is_positive:
+            # Pick 1 or 2 emoji from the positive pool
+            emojis = random.sample(GOOD_BOT_REACTIONS, k=min(random.randint(1, 2), len(GOOD_BOT_REACTIONS)))
+        else:
+            emojis = [random.choice(BAD_BOT_REACTIONS)]
+
+        for emoji in emojis:
+            try:
+                await message.add_reaction(emoji)
+            except Exception as exc:
+                log.warning("Failed to add reaction %s: %s", emoji, exc)
+
+        # Roll for retort
+        if random.random() < BOT_RETORT_CHANCE:
+            retort = await generate_retort(is_positive)
+            if retort:
+                try:
+                    await message.reply(retort, mention_author=False)
+                except Exception as exc:
+                    log.warning("Failed to send retort: %s", exc)
+
+    except Exception as exc:
+        log.warning("Error in handle_bot_feedback: %s", exc)
+
+
 async def handle_query(channel_id: int, user_message: str, web_search: bool = False) -> str:
     lock = channel_locks[channel_id]
 
@@ -193,7 +299,10 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
-    # Only act when the bot is mentioned
+    # Check for feedback reactions in the background — never blocks normal processing
+    asyncio.create_task(handle_bot_feedback(message))
+
+    # Only act on queries when the bot is mentioned
     if bot.user not in message.mentions:
         await bot.process_commands(message)
         return
@@ -279,6 +388,44 @@ async def slash_history(interaction: discord.Interaction):
 async def slash_model(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"🤖 Currently using model: `{MODEL_ID}`",
+        ephemeral=True,
+    )
+
+
+@tree.command(name="tvpaffirmation", description="Post a random affirmation, quote, or fact.")
+@app_commands.describe(category="Optional category filter. Use /tvpcategories to see options.")
+async def slash_affirmation(interaction: discord.Interaction, category: Optional[str] = None):
+    await interaction.response.defer()
+
+    # Normalize category input — lowercase, treat empty string as no filter
+    category_key = category.lower().strip() if category else None
+
+    # Validate the category if one was given
+    if category_key and category_key not in CATEGORY_LABELS:
+        await interaction.followup.send(
+            f"❌ Unknown category `{category}`. Use `/tvpcategories` to see valid options.",
+            ephemeral=True,
+        )
+        return
+
+    content, source, was_ai_generated = await get_affirmation(category_key)
+
+    label = CATEGORY_LABELS.get(category_key or "", "Daily Affirmation")
+    lines = [f"✨ **{label}**\n", content]
+    if source:
+        lines.append(f"\n*— {source}*")
+    lines.append("\n───────────────────────────────")
+    if was_ai_generated:
+        lines.append("🤖 *AI-generated*")
+
+    await interaction.followup.send("\n".join(lines))
+
+
+@tree.command(name="tvpcategories", description="List available affirmation categories.")
+async def slash_categories(interaction: discord.Interaction):
+    category_list = "\n".join(f"• `{key}` — {label}" for key, label in CATEGORY_LABELS.items())
+    await interaction.response.send_message(
+        f"**Available categories for `/tvpaffirmation`:**\n{category_list}",
         ephemeral=True,
     )
 
