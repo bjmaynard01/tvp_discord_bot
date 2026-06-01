@@ -210,7 +210,7 @@ async def generate_retort(is_positive: bool) -> str:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{OLLAMA_API_URL}/api/chat",
+                f"{OPENWEBUI_API_URL}/api/chat/completions",
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
