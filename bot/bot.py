@@ -24,8 +24,7 @@ from config import (
     BOT_RETORT_CHANCE,
     GOOD_BOT_RETORT_PROMPT,
     BAD_BOT_RETORT_PROMPT,
-    OLLAMA_API_URL,
-    OLLAMA_RETORT_MODEL,
+    RETORT_MODEL,
 )
 from affirmations import get_affirmation, CATEGORY_LABELS
 
@@ -178,33 +177,22 @@ def chunk_message(text: str, limit: int = 1900) -> list[str]:
 
 async def generate_retort(is_positive: bool) -> str:
     """
-    Generate a short personality retort via Ollama (raw model, no presentation layer).
-    Goes directly to Ollama so the workspace system prompt in Open WebUI doesn't
-    override the bot's silly personality. Does NOT use handle_query() and does NOT
-    touch conversation_history.
+    Generate a short personality retort via Open WebUI using the dedicated retort model.
+    The retort model's system prompt in Open WebUI defines its personality.
+    Does NOT use handle_query() and does NOT touch conversation_history.
     """
-    system_prompt = (
-        "You are Simple Dog from Hyperbole and a Half. "
-        "Respond with ONLY your reply — no preamble, no quotation marks, no explanation. "
-        "Keep it to 1-2 sentences."
-    )
     user_prompt = GOOD_BOT_RETORT_PROMPT if is_positive else BAD_BOT_RETORT_PROMPT
 
-    # Ollama native /api/chat format — no auth header needed.
-    # think=False disables chain-of-thought on thinking models (e.g. gemma4:e4b),
-    # which otherwise put their output in a "thinking" field and leave content empty.
-    # num_predict caps output tokens (Ollama's equivalent of max_tokens).
     payload = {
-        "model": OLLAMA_RETORT_MODEL,
+        "model": RETORT_MODEL,
         "messages": [
-            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        "stream": False,
-        "think": False,
-        "options": {
-            "num_predict": 120,
-        },
+        "max_tokens": 120,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENWEBUI_API_KEY}",
+        "Content-Type": "application/json",
     }
 
     try:
@@ -212,18 +200,18 @@ async def generate_retort(is_positive: bool) -> str:
             async with session.post(
                 f"{OPENWEBUI_API_URL}/api/chat/completions",
                 json=payload,
+                headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
-                log.info("Ollama responded with status %s", resp.status)
+                log.info("Retort model responded with status %s", resp.status)
                 if resp.status != 200:
                     body = await resp.text()
                     log.warning("Retort generation failed — status %s, body: %s", resp.status, body[:200])
                     return ""
                 data = await resp.json()
-                log.info("Ollama raw response: %r", str(data)[:300])
-                content = data["message"]["content"].strip()
+                content = data["choices"][0]["message"]["content"].strip()
                 if not content:
-                    log.warning("Ollama returned 200 but content was empty")
+                    log.warning("Retort model returned 200 but content was empty")
                 return content
     except Exception as exc:
         log.warning("Retort generation error: %s", exc)

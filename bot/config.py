@@ -45,11 +45,10 @@ MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "750"))
 # Leave blank to rely entirely on the workspace model's own system prompt.
 SYSTEM_PROMPT: str = os.getenv("SYSTEM_PROMPT", "")
 
-# ── Ollama (retort generation) ────────────────────────────────────────────────
-# Retorts bypass the Open WebUI presentation layer and go straight to Ollama
-# so the model's raw personality isn't overridden by the workspace system prompt.
-OLLAMA_API_URL: str = os.getenv("OLLAMA_API_URL", "http://192.168.130.16:11434")
-OLLAMA_RETORT_MODEL: str = os.getenv("OLLAMA_RETORT_MODEL", "gemma4:e4b")
+# ── Retort model ─────────────────────────────────────────────────────────────
+# Dedicated Open WebUI model for "good bot" / "bad bot" personality responses.
+# Uses the same OPENWEBUI_API_URL and OPENWEBUI_API_KEY as the main model.
+RETORT_MODEL: str = os.getenv("RETORT_MODEL", "gemma4:e4b")
 
 # ── Bot Feedback Reactions ────────────────────────────────────────────────────
 # Phrases that trigger positive/negative emoji reactions (and optional retort).
