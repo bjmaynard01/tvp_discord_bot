@@ -104,6 +104,9 @@ async def query_openwebui(channel_id: int, user_message: str, web_search: bool =
         "model": MODEL_ID,
         "messages": messages_payload,
         "max_tokens": MAX_TOKENS,
+        "params": {
+            "function_calling": "legacy",
+        },
     }
     if web_search:
         payload["features"] = {"web_search": True}
