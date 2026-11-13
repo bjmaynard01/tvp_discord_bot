@@ -48,10 +48,24 @@ jobs:
   deploy:
     runs-on: self-hosted
     needs: build-and-push
+    permissions:
+      contents: read
+      packages: read
 
     steps:
-      - name: Trigger Watchtower Deploy
+      - name: Deploy tvp-bot
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl -s -o /dev/null -w "%{http_code}" \
-               -H "Authorization: Bearer ${{ secrets.WATCHTOWER_TOKEN }}" \
-               http://localhost:8080/v1/update
+          set -euo pipefail
+          DOCKER_CONFIG=$(mktemp -d "${RUNNER_TEMP}/tvp-docker.XXXXXX")
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+
+          printf '%s' "$GHCR_TOKEN" | docker --config "$DOCKER_CONFIG" login ghcr.io \
+            --username "${GITHUB_ACTOR}" --password-stdin
+
+          COMPOSE_FILE=/mnt/containers/compose/docker-compose.yml
+          sudo env DOCKER_CONFIG="$DOCKER_CONFIG" docker compose -f "$COMPOSE_FILE" pull tvp-bot
+          sudo env DOCKER_CONFIG="$DOCKER_CONFIG" docker compose -f "$COMPOSE_FILE" up \
+            -d --no-deps --pull never tvp-bot
+
